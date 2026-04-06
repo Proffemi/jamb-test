@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduTest CBT — Computer Based Test Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d45;
+    --text: #e8edf5;
+    --muted: #6b7a96;
+    --accent: #3b82f6;
+    --accent2: #60a5fa;
+    --correct: #22c55e;
+    --wrong: #ef4444;
+    --warn: #f59e0b;
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .screen { display: none; position: relative; z-index: 1; }
+  .screen.active { display: block; }
+
+  /* ─── HOME SCREEN ─── */
+  #home {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2.2rem, 5vw, 3.8rem);
+    font-weight: 800;
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa, #34d399);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+
+  .tagline {
+    color: var(--muted);
+    font-size: 1rem;
+    margin-bottom: 56px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 300;
+  }
+
+  .subjects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    width: 100%;
+    max-width: 900px;
+    margin-bottom: 48px;
+  }
+
+  .subject-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .subject-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--card-color, #3b82f6), transparent 60%);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .subject-card:hover::before { opacity: 0.08; }
+  .subject-card:hover {
+    border-color: var(--card-color, var(--accent));
+    transform: translateY(-3px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  }
+
+  .subject-card.selected {
+    border-color: var(--card-color, var(--accent));
+    background: var(--surface2);
+    box-shadow: 0 0 0 2px var(--card-color, var(--accent));
+  }
+
+  .subject-card.selected::before { opacity: 0.12; }
+
+  .subject-icon { font-size: 1.8rem; margin-bottom: 10px; display: block; }
+
+  .subject-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text);
+    position: relative;
+    z-index: 1;
+  }
+
+  .subject-count {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 4px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .check-badge {
+    position: absolute;
+    top: 12px; right: 12px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--card-color, var(--accent));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem;
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 2;
+  }
+
+  .subject-card.selected .check-badge { opacity: 1; transform: scale(1); }
+
+  .settings-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .setting-group {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    min-width: 180px;
+  }
+
+  .setting-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .setting-group select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    cursor: pointer;
+    width: 100%;
+    outline: none;
+  }
+
+  .start-btn {
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    padding: 16px 56px;
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+    box-shadow: 0 8px 30px rgba(59,130,246,0.35);
+  }
+
+  .start-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(59,130,246,0.5); }
+  .start-btn:active { transform: translateY(0); }
+  .start-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* ─── TEST SCREEN ─── */
+  #test {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .test-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    backdrop-filter: blur(10px);
+  }
+
+  .test-subject-badge {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 6px 14px;
+    border-radius: 30px;
+    border: 1.5px solid;
+  }
+
+  .progress-info {
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+
+  .timer-display {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--accent2);
+    background: var(--surface2);
+    padding: 8px 20px;
+    border-radius: 30px;
+    border: 1.5px solid var(--border);
+    letter-spacing: 0.05em;
+    transition: color 0.3s;
+  }
+
+  .timer-display.warn { color: var(--warn); border-color: var(--warn); }
+  .timer-display.danger { color: var(--wrong); border-color: var(--wrong); animation: pulse 1s infinite; }
+
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+  .test-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+
+  .question-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px;
+    max-width: 760px;
+    width: 100%;
+    margin-bottom: 24px;
+    animation: fadeUp 0.3s ease;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .q-number {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .q-text {
+    font-size: 1.15rem;
+    line-height: 1.7;
+    font-weight: 400;
+    color: var(--text);
+    margin-bottom: 32px;
+  }
+
+  .options-list { display: flex; flex-direction: column; gap: 12px; }
+
+  .option-btn {
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: all 0.15s;
+    text-align: left;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  .option-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: rgba(59,130,246,0.08);
+  }
+
+  .option-btn.selected {
+    border-color: var(--accent);
+    background: rgba(59,130,246,0.12);
+  }
+
+  .opt-letter {
+    min-width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--muted);
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .option-btn.selected .opt-letter {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .nav-row {
+    display: flex;
+    gap: 12px;
+    max-width: 760px;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .nav-btn {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 12px 28px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex: 1;
+  }
+
+  .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .submit-btn {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    border: none;
+    color: #fff;
+    border-radius: 12px;
+    padding: 12px 28px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex: 1;
+    box-shadow: 0 4px 20px rgba(34,197,94,0.3);
+  }
+
+  .submit-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(34,197,94,0.45); }
+
+  /* Question navigator */
+  .q-navigator {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-width: 760px;
+    width: 100%;
+    margin-bottom: 24px;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  .q-dot {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--muted);
+  }
+
+  .q-dot:hover { border-color: var(--accent); color: var(--accent); }
+  .q-dot.answered { background: rgba(59,130,246,0.15); border-color: var(--accent); color: var(--accent2); }
+  .q-dot.current { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* ─── RESULTS SCREEN ─── */
+  #results {
+    min-height: 100vh;
+    padding: 60px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .results-header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .score-circle {
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    background: conic-gradient(var(--accent) 0%, transparent 0%);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 24px;
+    position: relative;
+  }
+
+  .score-circle::before {
+    content: '';
+    position: absolute;
+    width: 130px; height: 130px;
+    border-radius: 50%;
+    background: var(--surface);
+  }
+
+  .score-pct {
+    position: relative; z-index: 1;
+    font-family: 'Syne', sans-serif;
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--text);
+  }
+
+  .result-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(1.5rem, 3vw, 2.2rem);
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  .stats-row {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 48px;
+  }
+
+  .stat-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 28px;
+    text-align: center;
+    min-width: 120px;
+  }
+
+  .stat-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin-bottom: 4px;
+  }
+
+  .stat-lbl { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+  .review-section { max-width: 760px; width: 100%; }
+
+  .review-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .review-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    margin-bottom: 16px;
+    animation: fadeUp 0.3s ease both;
+  }
+
+  .review-item.correct-item { border-left: 4px solid var(--correct); }
+  .review-item.wrong-item { border-left: 4px solid var(--wrong); }
+
+  .review-q-num {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .review-q-text {
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+
+  .review-answers { display: flex; flex-direction: column; gap: 8px; }
+
+  .review-opt {
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    border: 1.5px solid transparent;
+  }
+
+  .review-opt.correct-ans {
+    background: rgba(34,197,94,0.1);
+    border-color: var(--correct);
+    color: var(--correct);
+  }
+
+  .review-opt.wrong-ans {
+    background: rgba(239,68,68,0.1);
+    border-color: var(--wrong);
+    color: var(--wrong);
+  }
+
+  .review-opt .rl { font-weight: 700; flex-shrink: 0; }
+
+  .explanation-box {
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: rgba(59,130,246,0.07);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    font-size: 0.88rem;
+    color: var(--accent2);
+    line-height: 1.6;
+  }
+
+  .explanation-box strong { display: block; margin-bottom: 4px; font-family: 'Syne', sans-serif; }
+
+  .restart-btn {
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    padding: 16px 56px;
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin: 32px 0;
+    transition: all 0.2s;
+    box-shadow: 0 8px 30px rgba(59,130,246,0.3);
+  }
+
+  .restart-btn:hover { transform: translateY(-2px); }
+
+  /* Tooltip */
+  .no-select-msg {
+    color: var(--warn);
+    font-size: 0.85rem;
+    margin-top: 8px;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .no-select-msg.show { opacity: 1; }
+
+  /* Progress bar */
+  .progress-bar-wrap {
+    height: 3px;
+    background: var(--border);
+    width: 100%;
+    position: sticky;
+    top: 57px;
+    z-index: 9;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #6366f1);
+    transition: width 0.4s ease;
+  }
+
+  /* ══════════════════════════════════════════
+     RESPONSIVE BREAKPOINTS
+     ══════════════════════════════════════════ */
+
+  /* ── Large Desktop: 1280px+ ── */
+  @media (min-width: 1280px) {
+    #home { padding: 60px 40px; }
+    .subjects-grid {
+      grid-template-columns: repeat(4, 1fr);
+      max-width: 1100px;
+      gap: 20px;
+    }
+    .subject-card { padding: 28px 24px; }
+    .subject-icon { font-size: 2.2rem; }
+    .subject-name { font-size: 1rem; }
+    .tagline { font-size: 1.05rem; margin-bottom: 60px; }
+    .settings-row { gap: 20px; }
+    .setting-group { min-width: 220px; }
+    .start-btn { padding: 18px 72px; font-size: 1.2rem; }
+    .question-card { padding: 48px 52px; }
+    .q-text { font-size: 1.2rem; }
+    .nav-row { max-width: 860px; }
+    .q-navigator { max-width: 860px; }
+    .review-section { max-width: 860px; }
+    .score-circle { width: 180px; height: 180px; }
+    .score-circle::before { width: 148px; height: 148px; }
+    .score-pct { font-size: 2.5rem; }
+  }
+
+  /* ── Regular Desktop: 1024px – 1279px ── */
+  @media (min-width: 1024px) and (max-width: 1279px) {
+    .subjects-grid { grid-template-columns: repeat(4, 1fr); max-width: 960px; }
+    .question-card { padding: 42px 46px; }
+  }
+
+  /* ── Tablet Landscape: 768px – 1023px ── */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    #home { padding: 40px 24px; }
+    .subjects-grid {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .subject-card { padding: 20px 16px; }
+    .subject-icon { font-size: 1.6rem; }
+    .tagline { margin-bottom: 40px; font-size: 0.9rem; }
+    .settings-row { gap: 12px; }
+    .setting-group { min-width: 160px; }
+    .start-btn { padding: 15px 48px; }
+    .test-header { padding: 12px 20px; }
+    .test-subject-badge { font-size: 0.85rem; padding: 5px 12px; }
+    .progress-info { font-size: 0.8rem; }
+    .timer-display { font-size: 1.1rem; padding: 7px 16px; }
+    .test-body { padding: 28px 20px; }
+    .question-card { padding: 32px 36px; }
+    .q-text { font-size: 1.05rem; }
+    .q-navigator { gap: 6px; padding: 14px; }
+    .q-dot { width: 30px; height: 30px; font-size: 0.7rem; }
+    .stats-row { gap: 12px; }
+    .stat-box { padding: 16px 22px; min-width: 100px; }
+    .stat-val { font-size: 1.5rem; }
+  }
+
+  /* ── Tablet Portrait: 600px – 767px ── */
+  @media (min-width: 600px) and (max-width: 767px) {
+    #home { padding: 32px 20px; }
+    .subjects-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .subject-card { padding: 18px 16px; }
+    .subject-icon { font-size: 1.5rem; margin-bottom: 8px; }
+    .subject-name { font-size: 0.88rem; }
+    .subject-count { font-size: 0.74rem; }
+    .tagline { font-size: 0.85rem; margin-bottom: 32px; }
+    .settings-row { gap: 10px; }
+    .setting-group { min-width: 140px; flex: 1; }
+    .start-btn { padding: 14px 40px; font-size: 1rem; width: 100%; max-width: 360px; }
+    .test-header { padding: 10px 16px; gap: 8px; }
+    .test-subject-badge { font-size: 0.8rem; padding: 4px 10px; }
+    .progress-info { display: none; }
+    .timer-display { font-size: 1rem; padding: 6px 14px; }
+    .test-body { padding: 20px 16px; }
+    .question-card { padding: 24px 22px; border-radius: 16px; }
+    .q-text { font-size: 1rem; }
+    .option-btn { padding: 13px 16px; font-size: 0.9rem; }
+    .opt-letter { width: 28px; height: 28px; font-size: 0.8rem; }
+    .nav-row { gap: 8px; }
+    .nav-btn, .submit-btn { padding: 11px 16px; font-size: 0.85rem; }
+    .q-navigator { gap: 6px; padding: 12px; }
+    .q-dot { width: 28px; height: 28px; font-size: 0.68rem; border-radius: 6px; }
+    .stats-row { gap: 10px; }
+    .stat-box { padding: 14px 18px; min-width: 90px; }
+    .stat-val { font-size: 1.4rem; }
+    .score-circle { width: 140px; height: 140px; }
+    .score-circle::before { width: 114px; height: 114px; }
+    .score-pct { font-size: 1.9rem; }
+    .review-item { padding: 20px; }
+    .review-q-text { font-size: 0.95rem; }
+    .review-opt { font-size: 0.85rem; padding: 9px 12px; }
+    .explanation-box { font-size: 0.83rem; }
+  }
+
+  /* ── Mobile Large: 480px – 599px ── */
+  @media (min-width: 480px) and (max-width: 599px) {
+    #home { padding: 28px 16px; }
+    .subjects-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    .subject-card { padding: 16px 14px; }
+    .subject-icon { font-size: 1.4rem; margin-bottom: 7px; }
+    .subject-name { font-size: 0.85rem; }
+    .subject-count { font-size: 0.72rem; }
+    .tagline { font-size: 0.8rem; margin-bottom: 28px; letter-spacing: 0.03em; }
+    .settings-row { flex-direction: column; align-items: stretch; gap: 10px; width: 100%; max-width: 400px; }
+    .setting-group { min-width: unset; }
+    .start-btn { width: 100%; max-width: 400px; padding: 14px 20px; font-size: 1rem; }
+    .test-header { padding: 10px 14px; flex-wrap: wrap; gap: 6px; }
+    .test-subject-badge { font-size: 0.78rem; padding: 4px 10px; }
+    .progress-info { display: none; }
+    .timer-display { font-size: 0.95rem; padding: 6px 12px; }
+    .test-body { padding: 16px 14px; }
+    .question-card { padding: 20px 18px; border-radius: 14px; }
+    .q-number { font-size: 0.7rem; margin-bottom: 12px; }
+    .q-text { font-size: 0.97rem; margin-bottom: 24px; }
+    .option-btn { padding: 12px 14px; font-size: 0.88rem; gap: 10px; }
+    .opt-letter { width: 28px; height: 28px; font-size: 0.78rem; border-radius: 6px; }
+    .nav-row { gap: 8px; }
+    .nav-btn { padding: 10px 12px; font-size: 0.82rem; }
+    .submit-btn { padding: 10px 12px; font-size: 0.82rem; }
+    .q-navigator { gap: 5px; padding: 10px 12px; }
+    .q-dot { width: 28px; height: 28px; font-size: 0.65rem; border-radius: 6px; }
+    #results { padding: 36px 16px; }
+    .score-circle { width: 130px; height: 130px; }
+    .score-circle::before { width: 106px; height: 106px; }
+    .score-pct { font-size: 1.7rem; }
+    .result-title { font-size: 1.4rem; }
+    .stats-row { gap: 8px; }
+    .stat-box { padding: 12px 14px; min-width: 80px; }
+    .stat-val { font-size: 1.3rem; }
+    .stat-lbl { font-size: 0.7rem; }
+    .review-item { padding: 18px 16px; }
+    .review-q-text { font-size: 0.92rem; }
+    .review-opt { font-size: 0.82rem; padding: 8px 10px; border-radius: 8px; }
+    .explanation-box { font-size: 0.8rem; padding: 12px 14px; }
+    .restart-btn { width: 100%; max-width: 400px; padding: 14px 20px; }
+  }
+
+  /* ── Mobile Small: max 479px ── */
+  @media (max-width: 479px) {
+    #home { padding: 24px 12px; justify-content: flex-start; padding-top: 40px; }
+    .logo { font-size: clamp(1.8rem, 8vw, 2.4rem); margin-bottom: 6px; }
+    .tagline { font-size: 0.72rem; margin-bottom: 24px; letter-spacing: 0.02em; }
+    .subjects-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 28px;
+    }
+    .subject-card { padding: 14px 12px; border-radius: 10px; }
+    .subject-icon { font-size: 1.3rem; margin-bottom: 6px; }
+    .subject-name { font-size: 0.8rem; }
+    .subject-count { font-size: 0.68rem; }
+    .check-badge { width: 18px; height: 18px; font-size: 0.6rem; top: 8px; right: 8px; }
+    .settings-row { flex-direction: column; align-items: stretch; gap: 8px; width: 100%; }
+    .setting-group { min-width: unset; padding: 12px 14px; }
+    .setting-label { font-size: 0.68rem; }
+    .setting-group select { font-size: 0.85rem; padding: 7px 10px; }
+    .start-btn { width: 100%; padding: 13px 16px; font-size: 0.95rem; }
+
+    /* Test header — stack timer below on very small screens */
+    .test-header {
+      padding: 8px 12px;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .test-subject-badge { font-size: 0.72rem; padding: 3px 9px; }
+    .progress-info { display: none; }
+    .timer-display { font-size: 0.9rem; padding: 5px 11px; }
+
+    .test-body { padding: 12px 10px; }
+    .question-card { padding: 18px 14px; border-radius: 12px; margin-bottom: 14px; }
+    .q-number { font-size: 0.68rem; margin-bottom: 10px; }
+    .q-text { font-size: 0.92rem; line-height: 1.65; margin-bottom: 20px; }
+    .options-list { gap: 8px; }
+    .option-btn { padding: 11px 12px; font-size: 0.84rem; gap: 8px; border-radius: 10px; }
+    .opt-letter { width: 26px; height: 26px; font-size: 0.75rem; border-radius: 6px; min-width: 26px; }
+
+    .nav-row { gap: 6px; }
+    .nav-btn, .submit-btn { padding: 10px 10px; font-size: 0.78rem; border-radius: 10px; }
+
+    .q-navigator { gap: 4px; padding: 10px; margin-bottom: 14px; }
+    .q-dot { width: 26px; height: 26px; font-size: 0.62rem; border-radius: 5px; }
+
+    #results { padding: 28px 12px; }
+    .score-circle { width: 120px; height: 120px; margin-bottom: 16px; }
+    .score-circle::before { width: 96px; height: 96px; }
+    .score-pct { font-size: 1.6rem; }
+    .result-title { font-size: 1.25rem; }
+    .stats-row { gap: 6px; }
+    .stat-box { padding: 10px 12px; min-width: 72px; }
+    .stat-val { font-size: 1.2rem; }
+    .stat-lbl { font-size: 0.65rem; }
+    .review-section { width: 100%; }
+    .review-item { padding: 14px 12px; border-radius: 10px; margin-bottom: 10px; }
+    .review-q-num { font-size: 0.68rem; }
+    .review-q-text { font-size: 0.88rem; }
+    .review-answers { gap: 6px; }
+    .review-opt { font-size: 0.78rem; padding: 7px 9px; border-radius: 7px; }
+    .explanation-box { font-size: 0.76rem; padding: 10px 12px; margin-top: 12px; }
+    .restart-btn { width: 100%; padding: 13px 16px; font-size: 0.95rem; margin: 20px 0; }
+
+    /* Tighten results header spacing */
+    .results-header { margin-bottom: 28px; }
+  }
+
+  /* ── Touch device optimizations ── */
+  @media (hover: none) and (pointer: coarse) {
+    .subject-card:hover { transform: none; box-shadow: none; }
+    .subject-card:active { transform: scale(0.97); }
+    .option-btn:active { background: rgba(59,130,246,0.15); border-color: var(--accent); }
+    .nav-btn:active { border-color: var(--accent); color: var(--accent); }
+    .start-btn:active { transform: scale(0.97); }
+    .submit-btn:active { transform: scale(0.97); }
+    /* Larger tap targets on touch */
+    .option-btn { min-height: 52px; }
+    .nav-btn, .submit-btn { min-height: 48px; }
+    .q-dot { min-width: 36px; min-height: 36px; }
+  }
+
+  /* ── Landscape phone ── */
+  @media (max-width: 767px) and (orientation: landscape) {
+    #home { padding: 20px 16px; justify-content: flex-start; }
+    .tagline { margin-bottom: 20px; }
+    .subjects-grid {
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .subject-card { padding: 12px 10px; }
+    .subject-icon { font-size: 1.2rem; margin-bottom: 5px; }
+    .settings-row { flex-direction: row; gap: 8px; }
+    .setting-group { flex: 1; min-width: unset; padding: 10px 12px; }
+    .test-body { padding: 10px 12px; }
+    .question-card { padding: 16px 20px; }
+    .q-text { font-size: 0.9rem; margin-bottom: 16px; }
+    .options-list { gap: 7px; }
+    .option-btn { padding: 9px 12px; font-size: 0.84rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════ HOME SCREEN ══════════ -->
+<div id="home" class="screen active">
+  <div class="logo">EduTest CBT</div>
+  <div class="tagline">Computer Based Test · Secondary School</div>
+
+  <div class="subjects-grid" id="subjectsGrid"></div>
+
+  <div class="settings-row">
+    <div class="setting-group">
+      <div class="setting-label">Number of Questions</div>
+      <select id="numQs">
+        <option value="10">10 Questions</option>
+        <option value="20" selected>20 Questions</option>
+        <option value="40">40 Questions</option>
+        <option value="60">60 Questions</option>
+      </select>
+    </div>
+    <div class="setting-group">
+      <div class="setting-label">Time Limit</div>
+      <select id="timeLimit">
+        <option value="15">15 Minutes</option>
+        <option value="30" selected>30 Minutes</option>
+        <option value="45">45 Minutes</option>
+        <option value="60">60 Minutes</option>
+        <option value="90">90 Minutes</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="start-btn" id="startBtn" disabled>Select a Subject to Begin</button>
+  <div class="no-select-msg" id="noSelectMsg">Please select at least one subject</div>
+</div>
+
+<!-- ══════════ TEST SCREEN ══════════ -->
+<div id="test" class="screen">
+  <div class="test-header">
+    <div class="test-subject-badge" id="testSubjectBadge">Mathematics</div>
+    <div class="progress-info" id="progressInfo">Question 1 of 20</div>
+    <div class="timer-display" id="timerDisplay">30:00</div>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="progressBarFill" style="width:0%"></div>
+  </div>
+  <div class="test-body">
+    <div class="q-navigator" id="qNavigator"></div>
+    <div class="question-card" id="questionCard">
+      <div class="q-number" id="qNumber">Question 1</div>
+      <div class="q-text" id="qText"></div>
+      <div class="options-list" id="optionsList"></div>
+    </div>
+    <div class="nav-row">
+      <button class="nav-btn" id="prevBtn" onclick="navigate(-1)">← Previous</button>
+      <button class="nav-btn" id="nextBtn" onclick="navigate(1)">Next →</button>
+      <button class="submit-btn" id="submitBtn" onclick="confirmSubmit()">Submit Test ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ RESULTS SCREEN ══════════ -->
+<div id="results" class="screen">
+  <div class="results-header">
+    <div class="score-circle" id="scoreCircle">
+      <div class="score-pct" id="scorePct">0%</div>
+    </div>
+    <div class="result-title" id="resultTitle">Well done!</div>
+    <div style="color:var(--muted); font-size:0.9rem" id="resultSubtitle"></div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-box">
+      <div class="stat-val" style="color:var(--correct)" id="statCorrect">0</div>
+      <div class="stat-lbl">Correct</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-val" style="color:var(--wrong)" id="statWrong">0</div>
+      <div class="stat-lbl">Wrong</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-val" style="color:var(--muted)" id="statUnanswered">0</div>
+      <div class="stat-lbl">Unanswered</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-val" style="color:var(--accent2)" id="statTime">—</div>
+      <div class="stat-lbl">Time Used</div>
+    </div>
+  </div>
+
+  <div class="review-section" id="reviewSection"></div>
+  <button class="restart-btn" onclick="goHome()">Start New Test</button>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════════════════════════
+
+const SUBJECTS = [
+  { id: 'math', name: 'Mathematics', icon: '📐', color: '#3b82f6' },
+  { id: 'english', name: 'English Language', icon: '📝', color: '#a78bfa' },
+  { id: 'chemistry', name: 'Chemistry', icon: '⚗️', color: '#f59e0b' },
+  { id: 'physics', name: 'Physics', icon: '⚛️', color: '#06b6d4' },
+  { id: 'biology', name: 'Biology', icon: '🧬', color: '#22c55e' },
+  { id: 'economics', name: 'Economics', icon: '📊', color: '#f97316' },
+  { id: 'civics', name: 'Civic Education', icon: '🏛️', color: '#ec4899' },
+  { id: 'furthermath', name: 'Further Mathematics', icon: '∑', color: '#8b5cf6' },
+];
+
+const QUESTION_BANK = {
+  math: [
+    { q: "If 2x + 5 = 13, find the value of x.", opts: ["x = 2","x = 3","x = 4","x = 5","x = 6"], ans: 2, exp: "2x = 13 − 5 = 8, so x = 8 ÷ 2 = 4." },
+    { q: "What is the value of √144?", opts: ["10","11","12","13","14"], ans: 2, exp: "12 × 12 = 144, so √144 = 12." },
+    { q: "Simplify: 3a + 2b − a + 4b", opts: ["2a + 6b","4a + 6b","2a + 2b","4a + 2b","3a + 6b"], ans: 0, exp: "3a − a = 2a and 2b + 4b = 6b, giving 2a + 6b." },
+    { q: "A triangle has angles 60°, 80°, and x°. Find x.", opts: ["30°","40°","50°","60°","70°"], ans: 1, exp: "Sum of angles = 180°. x = 180 − 60 − 80 = 40°." },
+    { q: "What is 15% of 200?", opts: ["20","25","30","35","40"], ans: 2, exp: "15/100 × 200 = 30." },
+    { q: "Find the LCM of 4 and 6.", opts: ["8","10","12","16","24"], ans: 2, exp: "Multiples of 4: 4,8,12… Multiples of 6: 6,12… LCM = 12." },
+    { q: "Which of the following is a prime number?", opts: ["9","15","21","29","35"], ans: 3, exp: "29 has no factors other than 1 and itself, so it is prime." },
+    { q: "Evaluate: 5³", opts: ["15","25","100","115","125"], ans: 4, exp: "5³ = 5 × 5 × 5 = 125." },
+    { q: "A rectangle has length 8 cm and width 5 cm. What is its area?", opts: ["13 cm²","26 cm²","40 cm²","45 cm²","64 cm²"], ans: 2, exp: "Area = length × width = 8 × 5 = 40 cm²." },
+    { q: "Solve: x/3 = 7", opts: ["x = 3","x = 7","x = 14","x = 21","x = 28"], ans: 3, exp: "x = 7 × 3 = 21." },
+    { q: "What is the gradient of the line y = 3x + 5?", opts: ["5","3","−3","−5","15"], ans: 1, exp: "In y = mx + c, the gradient m = 3." },
+    { q: "Convert 0.25 to a fraction in its lowest terms.", opts: ["1/2","1/3","1/4","1/5","2/5"], ans: 2, exp: "0.25 = 25/100 = 1/4." },
+    { q: "A bag contains 5 red and 3 blue balls. What is the probability of picking a red ball?", opts: ["3/8","5/3","5/8","3/5","1/2"], ans: 2, exp: "P(red) = 5/(5+3) = 5/8." },
+    { q: "What is the sum of interior angles of a quadrilateral?", opts: ["180°","270°","360°","450°","540°"], ans: 2, exp: "Sum of interior angles of a quadrilateral = (4−2) × 180° = 360°." },
+    { q: "Factorise: x² − 9", opts: ["(x−3)(x−3)","(x+3)(x−3)","(x+9)(x−1)","(x−1)(x+9)","(x+3)(x+3)"], ans: 1, exp: "Difference of two squares: x² − 9 = (x+3)(x−3)." },
+  ],
+  english: [
+    { q: "Choose the correct spelling:", opts: ["Accomodate","Accommadate","Accommodate","Accomoddate","Accommmodate"], ans: 2, exp: "'Accommodate' has double 'c' and double 'm'." },
+    { q: "Which sentence is grammatically correct?", opts: ["She don't like ice cream.","She doesn't likes ice cream.","She doesn't like ice cream.","She do not likes ice cream.","She not like ice cream."], ans: 2, exp: "With third-person singular subjects, use 'doesn't' + base verb: 'She doesn't like.'" },
+    { q: "What is the plural of 'child'?", opts: ["Childs","Childes","Childrens","Children","Childer"], ans: 3, exp: "'Child' has an irregular plural: children." },
+    { q: "Identify the adverb in: 'She sings beautifully.'", opts: ["She","sings","beautifully","the","None"], ans: 2, exp: "'Beautifully' modifies the verb 'sings' and is therefore an adverb." },
+    { q: "Which is a synonym of 'benevolent'?", opts: ["Cruel","Kind","Lazy","Angry","Sad"], ans: 1, exp: "'Benevolent' means well-meaning and kind." },
+    { q: "The opposite (antonym) of 'ancient' is:", opts: ["Old","Modern","Large","Simple","Dark"], ans: 1, exp: "'Modern' or 'new' is the antonym of 'ancient'." },
+    { q: "Choose the correct form: 'Neither the boys nor the girl ___ present.'", opts: ["were","are","is","am","be"], ans: 2, exp: "When using 'neither…nor', the verb agrees with the nearer subject ('girl'), which is singular: 'is'." },
+    { q: "A figure of speech that makes a direct comparison without using 'like' or 'as' is:", opts: ["Simile","Hyperbole","Metaphor","Personification","Alliteration"], ans: 2, exp: "A metaphor makes a direct comparison: 'Life is a journey.'" },
+    { q: "What does the prefix 'un-' mean?", opts: ["Again","Not/opposite of","Before","After","With"], ans: 1, exp: "The prefix 'un-' means not or the opposite of (e.g., unhappy = not happy)." },
+    { q: "Select the sentence in passive voice:", opts: ["The dog bit the man.","The cat sat on the mat.","The letter was written by John.","She reads a book.","They play football."], ans: 2, exp: "Passive voice: The subject receives the action. 'The letter was written by John' is passive." },
+  ],
+  chemistry: [
+    { q: "What is the chemical symbol for water?", opts: ["WA","W2O","H2O","HO2","OH2"], ans: 2, exp: "Water consists of two hydrogen atoms and one oxygen atom: H₂O." },
+    { q: "The atomic number of Carbon is:", opts: ["4","5","6","7","8"], ans: 2, exp: "Carbon has 6 protons, giving it atomic number 6." },
+    { q: "Which of the following is a noble gas?", opts: ["Nitrogen","Oxygen","Argon","Chlorine","Hydrogen"], ans: 2, exp: "Argon (Ar) is a noble gas in Group 18 of the periodic table." },
+    { q: "What type of bond is formed between Na and Cl in NaCl?", opts: ["Covalent bond","Metallic bond","Ionic bond","Hydrogen bond","Van der Waals"], ans: 2, exp: "NaCl is formed by electron transfer from Na to Cl, creating an ionic bond." },
+    { q: "What is the pH of pure water at 25°C?", opts: ["5","6","7","8","9"], ans: 2, exp: "Pure water is neutral with a pH of exactly 7 at 25°C." },
+    { q: "Which gas is produced when an acid reacts with a metal?", opts: ["Oxygen","Carbon dioxide","Hydrogen","Nitrogen","Chlorine"], ans: 2, exp: "Acid + metal → salt + hydrogen gas (e.g., Zn + H₂SO₄ → ZnSO₄ + H₂)." },
+    { q: "The periodic table was developed by:", opts: ["Newton","Einstein","Mendeleev","Bohr","Faraday"], ans: 2, exp: "Dmitri Mendeleev arranged elements by atomic mass and predicted missing elements." },
+    { q: "Which of the following is an example of a physical change?", opts: ["Burning wood","Rusting iron","Melting ice","Baking a cake","Digesting food"], ans: 2, exp: "Melting ice is a physical change — only the state changes, not the chemical composition." },
+    { q: "How many electrons can the first electron shell hold?", opts: ["1","2","4","6","8"], ans: 1, exp: "The first shell (n=1) can hold a maximum of 2 electrons." },
+    { q: "What is the formula for sulphuric acid?", opts: ["HCl","HNO₃","H₂SO₄","H₂SO₃","H₃PO₄"], ans: 2, exp: "Sulphuric acid is H₂SO₄, made of hydrogen, sulphur, and oxygen." },
+  ],
+  physics: [
+    { q: "What is the SI unit of force?", opts: ["Watt","Joule","Pascal","Newton","Ampere"], ans: 3, exp: "Force is measured in Newtons (N), named after Isaac Newton." },
+    { q: "Which of the following best describes velocity?", opts: ["Speed only","Distance per time","Speed in a given direction","Total distance travelled","Rate of change of acceleration"], ans: 2, exp: "Velocity is a vector quantity: speed with a specified direction." },
+    { q: "The acceleration due to gravity on Earth is approximately:", opts: ["5 m/s²","7.5 m/s²","9.8 m/s²","11 m/s²","15 m/s²"], ans: 2, exp: "Earth's gravitational acceleration g ≈ 9.8 m/s² (often rounded to 10 m/s²)." },
+    { q: "What type of wave is sound?", opts: ["Transverse","Electromagnetic","Longitudinal","Surface","Torsional"], ans: 2, exp: "Sound is a longitudinal wave — the vibrations are parallel to the direction of propagation." },
+    { q: "Which law states that current through a conductor is proportional to the voltage across it?", opts: ["Newton's Law","Boyle's Law","Ohm's Law","Faraday's Law","Snell's Law"], ans: 2, exp: "Ohm's Law: V = IR, where V is voltage, I is current, and R is resistance." },
+    { q: "A body moving with uniform velocity has:", opts: ["Increasing acceleration","Constant acceleration","Zero acceleration","Decreasing acceleration","Variable acceleration"], ans: 2, exp: "Uniform velocity means no change in speed or direction, so acceleration = 0." },
+    { q: "Which colour of light has the highest frequency?", opts: ["Red","Orange","Yellow","Green","Violet"], ans: 4, exp: "Violet light has the highest frequency (and shortest wavelength) in the visible spectrum." },
+    { q: "The unit of electrical resistance is:", opts: ["Volt","Ampere","Ohm","Watt","Farad"], ans: 2, exp: "Resistance is measured in Ohms (Ω)." },
+    { q: "What does a transformer do?", opts: ["Converts AC to DC","Converts DC to AC","Steps up or down voltage","Measures current","Stores charge"], ans: 2, exp: "A transformer uses electromagnetic induction to step voltage up or down." },
+    { q: "Which of the following is NOT a renewable energy source?", opts: ["Solar","Wind","Coal","Hydro","Geothermal"], ans: 2, exp: "Coal is a fossil fuel and non-renewable. Solar, wind, hydro, and geothermal are renewable." },
+  ],
+  biology: [
+    { q: "What is the powerhouse of the cell?", opts: ["Nucleus","Ribosome","Mitochondria","Vacuole","Cell membrane"], ans: 2, exp: "The mitochondria produce ATP through cellular respiration, earning the nickname 'powerhouse of the cell'." },
+    { q: "Which blood group is the universal donor?", opts: ["A","B","AB","O","O+"], ans: 3, exp: "Blood group O negative (O−) is the universal donor for red blood cells." },
+    { q: "Photosynthesis takes place in the:", opts: ["Mitochondria","Nucleus","Chloroplast","Ribosome","Vacuole"], ans: 2, exp: "Chloroplasts contain chlorophyll and are the site of photosynthesis." },
+    { q: "What is the function of white blood cells?", opts: ["Transport oxygen","Fight infection","Carry nutrients","Clot blood","Produce hormones"], ans: 1, exp: "White blood cells (leukocytes) are part of the immune system and fight infections." },
+    { q: "DNA stands for:", opts: ["Deoxyribonucleic Acid","Diribonucleic Acid","Deoxyribose Nuclear Acid","Dinitrogen Acid","None of the above"], ans: 0, exp: "DNA = Deoxyribonucleic Acid, the molecule that carries genetic information." },
+    { q: "Which organ in the body produces insulin?", opts: ["Liver","Kidney","Heart","Pancreas","Spleen"], ans: 3, exp: "The pancreas produces insulin, which regulates blood sugar levels." },
+    { q: "The process by which plants lose water through their leaves is called:", opts: ["Osmosis","Transpiration","Respiration","Photosynthesis","Excretion"], ans: 1, exp: "Transpiration is the loss of water vapour through stomata on leaves." },
+    { q: "How many chambers does the human heart have?", opts: ["1","2","3","4","5"], ans: 3, exp: "The human heart has 4 chambers: left/right atria and left/right ventricles." },
+    { q: "Which vitamin is produced when skin is exposed to sunlight?", opts: ["Vitamin A","Vitamin B","Vitamin C","Vitamin D","Vitamin E"], ans: 3, exp: "Sunlight triggers Vitamin D synthesis in the skin." },
+    { q: "Osmosis is the movement of water from a region of:", opts: ["High concentration to low","Low temperature to high","Low solute to high solute concentration","High solute to low solute","None of the above"], ans: 2, exp: "Osmosis: water moves from low solute (high water potential) to high solute (low water potential) across a semi-permeable membrane." },
+  ],
+  economics: [
+    { q: "What does GDP stand for?", opts: ["Gross Domestic Product","Gross Domestic Profit","General Domestic Product","Gross Demand Price","General Demand Profit"], ans: 0, exp: "GDP = Gross Domestic Product — the total monetary value of goods and services produced in a country." },
+    { q: "The law of demand states that, all things equal:", opts: ["As price rises, demand rises","As price rises, demand falls","As income rises, demand falls","As supply rises, price rises","None of the above"], ans: 1, exp: "The law of demand: there is an inverse relationship between price and quantity demanded." },
+    { q: "What is inflation?", opts: ["Fall in general price levels","Rise in unemployment","General rise in price levels","Increase in production","Decrease in money supply"], ans: 2, exp: "Inflation is a sustained general rise in the price level of goods and services." },
+    { q: "Which of the following is an example of a direct tax?", opts: ["VAT","Excise duty","Income tax","Sales tax","Customs duty"], ans: 2, exp: "Income tax is levied directly on an individual's earnings — it is a direct tax." },
+    { q: "Opportunity cost is:", opts: ["The total cost of production","The cost of the next best alternative foregone","The cheapest available option","The cost of raw materials","Profit earned"], ans: 1, exp: "Opportunity cost = the value of the next best alternative you give up when making a choice." },
+    { q: "A monopoly exists when:", opts: ["Many sellers sell similar goods","Two firms dominate the market","Only one seller controls the market","The government controls all prices","Prices are fixed by firms"], ans: 2, exp: "A monopoly: a single seller with no close substitutes controls the entire market." },
+    { q: "What is the main function of a central bank?", opts: ["Provide loans to businesses","Accept deposits from individuals","Regulate the money supply and banking system","Sell goods and services","Collect taxes"], ans: 2, exp: "The central bank (e.g., CBN in Nigeria) regulates the money supply, manages inflation, and oversees the banking system." },
+    { q: "Which type of unemployment occurs when workers are between jobs?", opts: ["Structural","Cyclical","Frictional","Seasonal","Technological"], ans: 2, exp: "Frictional unemployment occurs when workers are temporarily between jobs." },
+    { q: "The price elasticity of demand measures:", opts: ["How supply responds to price changes","How demand responds to price changes","How income affects supply","How government policy affects prices","None of these"], ans: 1, exp: "Price Elasticity of Demand (PED) = % change in quantity demanded ÷ % change in price." },
+    { q: "Privatisation is the transfer of ownership from:", opts: ["Private to public sector","Public to private sector","Government to local authorities","Individuals to cooperatives","NGO to government"], ans: 1, exp: "Privatisation = moving ownership/control from the public/government sector to private individuals or companies." },
+  ],
+  civics: [
+    { q: "What is the full meaning of ECOWAS?", opts: ["Economic Community of West African States","Economic Council of West African States","East Community of West African States","Economic Congress of West African States","Economic Coalition of West African States"], ans: 0, exp: "ECOWAS stands for Economic Community of West African States, established in 1975." },
+    { q: "Fundamental Human Rights are enshrined in which chapter of the Nigerian Constitution?", opts: ["Chapter I","Chapter II","Chapter III","Chapter IV","Chapter V"], ans: 3, exp: "Chapter IV of the 1999 Nigerian Constitution guarantees Fundamental Human Rights." },
+    { q: "Which of the following is NOT a source of the Nigerian Constitution?", opts: ["Constituent Assembly","Military decrees","Electoral Act","Judicial decisions","Customs and conventions"], ans: 2, exp: "The Electoral Act is legislation passed by the National Assembly — it is not itself a source of the Constitution." },
+    { q: "Citizenship can be acquired by:", opts: ["Naturalisation only","Birth only","Marriage only","Birth, registration, and naturalisation","Only by government appointment"], ans: 3, exp: "Citizenship can be acquired by birth, registration, and naturalisation according to Nigerian law." },
+    { q: "The three arms of government are:", opts: ["President, Senate, Supreme Court","Legislature, Executive, Judiciary","Police, Army, Navy","Federal, State, Local","INEC, EFCC, ICPC"], ans: 1, exp: "Government has three arms: the Legislature (makes laws), Executive (implements laws), and Judiciary (interprets laws)." },
+    { q: "What is the primary purpose of taxation?", opts: ["To punish citizens","To generate revenue for government","To discourage trade","To reward businesses","To control population"], ans: 1, exp: "Taxes are the main source of government revenue, used to fund public services and infrastructure." },
+    { q: "The Nigerian National Anthem begins with the line:", opts: ["Nigeria, we hail thee","Arise O compatriots","God bless our homeland","Land of beauty","We are one nation"], ans: 1, exp: "The Nigerian National Anthem (adopted 1978) begins: 'Arise O compatriots, Nigeria's call obey…'" },
+    { q: "A referendum is:", opts: ["An election of representatives","A direct vote by citizens on a specific issue","A meeting of parliament","A judicial review","A declaration of war"], ans: 1, exp: "A referendum is a direct vote by citizens on a particular proposal or policy." },
+    { q: "Rule of Law means:", opts: ["The ruler makes all laws","Everyone is subject to the law equally","The military rules the state","Laws only apply to criminals","The government can break the law"], ans: 1, exp: "The Rule of Law holds that everyone — including government — is equally subject to the law." },
+    { q: "Which body conducts elections in Nigeria?", opts: ["EFCC","NCC","INEC","CBN","FRSC"], ans: 2, exp: "INEC (Independent National Electoral Commission) is responsible for conducting elections in Nigeria." },
+  ],
+  furthermath: [
+    { q: "What is the derivative of f(x) = x³?", opts: ["x²","3x","3x²","x³","2x³"], ans: 2, exp: "Using the power rule: d/dx(xⁿ) = nxⁿ⁻¹, so d/dx(x³) = 3x²." },
+    { q: "Evaluate: lim(x→2) [x² − 4] / [x − 2]", opts: ["0","2","4","∞","−4"], ans: 2, exp: "Factor: (x²−4)/(x−2) = (x+2)(x−2)/(x−2) = x+2. As x→2: 2+2 = 4." },
+    { q: "The sum of the first n terms of an AP with first term a and common difference d is:", opts: ["n(a+d)/2","n/2[2a+(n−1)d]","a+(n−1)d","n·a·d","2a+(n+1)d"], ans: 1, exp: "Sₙ = n/2 × [2a + (n−1)d] is the formula for the sum of an arithmetic progression." },
+    { q: "Find the range of values of x for which x² − 5x + 6 < 0.", opts: ["x < 2 or x > 3","x > 2 and x < 3","x ≤ 2","x ≥ 3","x = 2 or x = 3"], ans: 1, exp: "x²−5x+6 = (x−2)(x−3). This is negative between the roots: 2 < x < 3." },
+    { q: "The modulus of the complex number 3 + 4i is:", opts: ["1","3","4","5","7"], ans: 3, exp: "|3+4i| = √(3²+4²) = √(9+16) = √25 = 5." },
+    { q: "∫2x dx = ?", opts: ["2","x²","x² + C","2x² + C","x + C"], ans: 2, exp: "∫2x dx = x² + C by the power rule of integration." },
+    { q: "Solve: 2ˣ = 32", opts: ["x = 2","x = 3","x = 4","x = 5","x = 6"], ans: 3, exp: "32 = 2⁵, so 2ˣ = 2⁵ → x = 5." },
+    { q: "The general term of a geometric progression with first term a and ratio r is:", opts: ["a + (n−1)r","a · rⁿ","a · rⁿ⁻¹","n · a · r","a/(rⁿ⁻¹)"], ans: 2, exp: "The nth term of a GP = arⁿ⁻¹." },
+    { q: "What is the value of sin 90°?", opts: ["0","√2/2","√3/2","1","−1"], ans: 3, exp: "sin 90° = 1 (the maximum value of the sine function)." },
+    { q: "If a matrix A has det(A) = 0, then A is:", opts: ["Invertible","Identity matrix","Singular matrix","Symmetric","Diagonal"], ans: 2, exp: "A matrix with determinant 0 is called a singular matrix and has no inverse." },
+  ],
+};
+
+// ══════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════
+let selectedSubject = null;
+let questions = [];
+let userAnswers = [];
+let currentQ = 0;
+let timerInterval = null;
+let secondsLeft = 0;
+let totalSeconds = 0;
+let secondsUsed = 0;
+
+// ══════════════════════════════════════════════════════════
+//  HOME SCREEN
+// ══════════════════════════════════════════════════════════
+function buildHome() {
+  const grid = document.getElementById('subjectsGrid');
+  grid.innerHTML = '';
+  SUBJECTS.forEach(s => {
+    const card = document.createElement('div');
+    card.className = 'subject-card';
+    card.style.setProperty('--card-color', s.color);
+    card.dataset.id = s.id;
+    const count = QUESTION_BANK[s.id]?.length || 0;
+    card.innerHTML = `
+      <span class="subject-icon">${s.icon}</span>
+      <div class="check-badge">✓</div>
+      <div class="subject-name">${s.name}</div>
+      <div class="subject-count">${count} questions available</div>
+    `;
+    card.addEventListener('click', () => toggleSubject(s.id, card));
+    grid.appendChild(card);
+  });
+}
+
+function toggleSubject(id, card) {
+  // Single select
+  document.querySelectorAll('.subject-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  selectedSubject = id;
+
+  const btn = document.getElementById('startBtn');
+  btn.disabled = false;
+  btn.textContent = '▶️  Start Test';
+}
+
+document.getElementById('startBtn').addEventListener('click', startTest);
+
+function startTest() {
+  if (!selectedSubject) {
+    const msg = document.getElementById('noSelectMsg');
+    msg.classList.add('show');
+    setTimeout(() => msg.classList.remove('show'), 2500);
+    return;
+  }
+  const numQs = parseInt(document.getElementById('numQs').value);
+  const timeMins = parseInt(document.getElementById('timeLimit').value);
+
+  const pool = [...(QUESTION_BANK[selectedSubject] || [])];
+  // Shuffle
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  questions = pool.slice(0, Math.min(numQs, pool.length));
+  if (questions.length === 0) return alert('No questions available for this subject.');
+
+  userAnswers = new Array(questions.length).fill(null);
+  currentQ = 0;
+  secondsLeft = timeMins * 60;
+  totalSeconds = secondsLeft;
+
+  const subj = SUBJECTS.find(s => s.id === selectedSubject);
+  const badge = document.getElementById('testSubjectBadge');
+  badge.textContent = subj.name;
+  badge.style.color = subj.color;
+  badge.style.borderColor = subj.color;
+
+  showScreen('test');
+  buildNavigator();
+  renderQuestion();
+  startTimer();
+}
+
+// ══════════════════════════════════════════════════════════
+//  TIMER
+// ══════════════════════════════════════════════════════════
+function startTimer() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    secondsLeft--;
+    if (secondsLeft <= 0) {
+      secondsLeft = 0;
+      clearInterval(timerInterval);
+      autoSubmit();
+    }
+    updateTimerDisplay();
+  }, 1000);
+  updateTimerDisplay();
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(secondsLeft / 60);
+  const s = secondsLeft % 60;
+  const el = document.getElementById('timerDisplay');
+  el.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  el.className = 'timer-display';
+  const ratio = secondsLeft / totalSeconds;
+  if (ratio <= 0.1) el.classList.add('danger');
+  else if (ratio <= 0.25) el.classList.add('warn');
+}
+
+// ══════════════════════════════════════════════════════════
+//  QUESTION RENDERING
+// ══════════════════════════════════════════════════════════
+const LETTERS = ['A','B','C','D','E'];
+
+function renderQuestion() {
+  const q = questions[currentQ];
+  document.getElementById('qNumber').textContent = `Question ${currentQ + 1} of ${questions.length}`;
+  document.getElementById('progressInfo').textContent = `Question ${currentQ + 1} of ${questions.length}`;
+  document.getElementById('qText').textContent = q.q;
+
+  const fill = ((currentQ + 1) / questions.length) * 100;
+  document.getElementById('progressBarFill').style.width = fill + '%';
+
+  const list = document.getElementById('optionsList');
+  list.innerHTML = '';
+  q.opts.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn' + (userAnswers[currentQ] === i ? ' selected' : '');
+    btn.innerHTML = `<span class="opt-letter">${LETTERS[i]}</span> <span>${opt}</span>`;
+    btn.addEventListener('click', () => selectAnswer(i));
+    list.appendChild(btn);
+  });
+
+  updateNavigator();
+
+  // Scroll up
+  document.getElementById('questionCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function selectAnswer(i) {
+  userAnswers[currentQ] = i;
+  renderQuestion();
+}
+
+function navigate(dir) {
+  const next = currentQ + dir;
+  if (next < 0 || next >= questions.length) return;
+  currentQ = next;
+  renderQuestion();
+}
+
+// ══════════════════════════════════════════════════════════
+//  NAVIGATOR
+// ══════════════════════════════════════════════════════════
+function buildNavigator() {
+  const nav = document.getElementById('qNavigator');
+  nav.innerHTML = '';
+  questions.forEach((_, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'q-dot';
+    dot.textContent = i + 1;
+    dot.addEventListener('click', () => { currentQ = i; renderQuestion(); });
+    nav.appendChild(dot);
+  });
+}
+
+function updateNavigator() {
+  const dots = document.querySelectorAll('.q-dot');
+  dots.forEach((dot, i) => {
+    dot.className = 'q-dot';
+    if (i === currentQ) dot.classList.add('current');
+    else if (userAnswers[i] !== null) dot.classList.add('answered');
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+//  SUBMIT
+// ══════════════════════════════════════════════════════════
+function confirmSubmit() {
+  const unanswered = userAnswers.filter(a => a === null).length;
+  if (unanswered > 0) {
+    const ok = confirm(`You have ${unanswered} unanswered question(s). Submit anyway?`);
+    if (!ok) return;
+  }
+  submitTest();
+}
+
+function autoSubmit() {
+  alert('Time is up! Your test has been submitted automatically.');
+  submitTest();
+}
+
+function submitTest() {
+  clearInterval(timerInterval);
+  secondsUsed = totalSeconds - secondsLeft;
+  showResults();
+}
+
+// ══════════════════════════════════════════════════════════
+//  RESULTS
+// ══════════════════════════════════════════════════════════
+function showResults() {
+  let correct = 0, wrong = 0, unanswered = 0;
+  questions.forEach((q, i) => {
+    if (userAnswers[i] === null) unanswered++;
+    else if (userAnswers[i] === q.ans) correct++;
+    else wrong++;
+  });
+
+  const pct = Math.round((correct / questions.length) * 100);
+  const subj = SUBJECTS.find(s => s.id === selectedSubject);
+
+  // Score circle
+  const circle = document.getElementById('scoreCircle');
+  const deg = (pct / 100) * 360;
+  circle.style.background = `conic-gradient(${subj.color} ${deg}deg, #1a2235 ${deg}deg)`;
+
+  document.getElementById('scorePct').textContent = pct + '%';
+
+  let title = 'Keep Practicing!';
+  if (pct >= 80) title = 'Excellent! 🎉';
+  else if (pct >= 60) title = 'Good Job! 👍';
+  else if (pct >= 40) title = 'Fair Attempt';
+  document.getElementById('resultTitle').textContent = title;
+  document.getElementById('resultSubtitle').textContent = `${subj.name} · ${questions.length} Questions`;
+
+  document.getElementById('statCorrect').textContent = correct;
+  document.getElementById('statWrong').textContent = wrong;
+  document.getElementById('statUnanswered').textContent = unanswered;
+
+  const m = Math.floor(secondsUsed / 60), s = secondsUsed % 60;
+  document.getElementById('statTime').textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+
+  // Review
+  const section = document.getElementById('reviewSection');
+  section.innerHTML = '<div class="review-title">Answer Review</div>';
+
+  questions.forEach((q, i) => {
+    const ua = userAnswers[i];
+    const isCorrect = ua === q.ans;
+    const item = document.createElement('div');
+    item.className = `review-item ${ua === null ? '' : (isCorrect ? 'correct-item' : 'wrong-item')}`;
+    item.style.animationDelay = (i * 0.04) + 's';
+
+    let optsHTML = '';
+    q.opts.forEach((opt, oi) => {
+      let cls = '';
+      if (oi === q.ans) cls = 'correct-ans';
+      else if (oi === ua && !isCorrect) cls = 'wrong-ans';
+      optsHTML += `<div class="review-opt ${cls}"><span class="rl">${LETTERS[oi]}.</span><span>${opt}</span></div>`;
+    });
+
+    const statusIcon = ua === null ? '⬜' : (isCorrect ? '✅' : '❌');
+    const yourAns = ua !== null ? `Your answer: <strong>${LETTERS[ua]}. ${q.opts[ua]}</strong>` : 'Not answered';
+
+    item.innerHTML = `
+      <div class="review-q-num">${statusIcon} Question ${i + 1}</div>
+      <div class="review-q-text">${q.q}</div>
+      <div class="review-answers">${optsHTML}</div>
+      <div class="explanation-box">
+        <strong>💡 Explanation</strong>
+        ${q.exp}<br><small style="opacity:0.7;margin-top:4px;display:block">${yourAns}</small>
+      </div>
+    `;
+    section.appendChild(item);
+  });
+
+  showScreen('results');
+}
+
+// ══════════════════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function goHome() {
+  clearInterval(timerInterval);
+  selectedSubject = null;
+  document.querySelectorAll('.subject-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('startBtn').textContent = 'Select a Subject to Begin';
+  showScreen('home');
+}
+
+// ══════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════
+buildHome();
+</script>
+</body>
+</html>
